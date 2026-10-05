@@ -1,16 +1,23 @@
-/* eslint-disable jsx-a11y/label-has-associated-control */
+/* eslint-disable max-len */
+/* eslint-disable import/extensions */
 /* eslint-disable jsx-a11y/control-has-associated-label */
 
 import React, { useEffect, useState } from 'react';
-import { UserWarning } from './UserWarning';
 import { USER_ID, getTodos } from './api/todos';
+import { UserWarning } from './UserWarning';
 import { Todo } from './types/Todo';
+import { TodoList } from './components/TodoList/TodoList';
+import { TodoFooter } from './components/TodoFooter/TodoFooter';
+import { Filter } from './components/TodoFilter/TodoFilter';
+import { ErrorNotification } from './components/ErrorNotification/ErrorNotification';
 
-type Filter = 'all' | 'active' | 'completed';
+enum ErrorMessage {
+  Load = 'Unable to load todos',
+}
 
 export const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>(Filter.All);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -23,7 +30,7 @@ export const App: React.FC = () => {
     getTodos()
       .then(setTodos)
       .catch(() => {
-        setError('Unable to load todos');
+        setError(ErrorMessage.Load);
       });
   }, []);
 
@@ -32,11 +39,11 @@ export const App: React.FC = () => {
       const hash = window.location.hash;
 
       if (hash === '#/active') {
-        setFilter('active');
+        setFilter(Filter.Active);
       } else if (hash === '#/completed') {
-        setFilter('completed');
+        setFilter(Filter.Completed);
       } else {
-        setFilter('all');
+        setFilter(Filter.All);
       }
     };
 
@@ -68,23 +75,23 @@ export const App: React.FC = () => {
   }
 
   const visibleTodos = todos.filter(todo => {
-    if (filter === 'active') {
+    if (filter === Filter.Active) {
       return !todo.completed;
     }
 
-    if (filter === 'completed') {
+    if (filter === Filter.Completed) {
       return todo.completed;
     }
 
     return true;
   });
 
-  const activeTodos = todos.filter(todo => !todo.completed);
-  const completedTodos = todos.filter(todo => todo.completed);
-
   const handleHideError = () => {
     setError('');
   };
+
+  const allTodosCompleted =
+    todos.length > 0 && todos.every(todo => todo.completed);
 
   return (
     <div className="todoapp">
@@ -95,9 +102,7 @@ export const App: React.FC = () => {
           <button
             type="button"
             className={`todoapp__toggle-all ${
-              todos.length > 0 && completedTodos.length === todos.length
-                ? 'active'
-                : ''
+              allTodosCompleted ? 'active' : ''
             }`}
             data-cy="ToggleAllButton"
           />
@@ -112,108 +117,12 @@ export const App: React.FC = () => {
           </form>
         </header>
 
-        {todos.length > 0 && (
-          <section className="todoapp__main" data-cy="TodoList">
-            {visibleTodos.map(todo => (
-              <div
-                key={todo.id}
-                data-cy="Todo"
-                className={`todo ${todo.completed ? 'completed' : ''}`}
-              >
-                <label className="todo__status-label">
-                  <input
-                    data-cy="TodoStatus"
-                    type="checkbox"
-                    className="todo__status"
-                    checked={todo.completed}
-                    readOnly
-                  />
-                </label>
+        {todos.length > 0 && <TodoList todos={visibleTodos} />}
 
-                <span data-cy="TodoTitle" className="todo__title">
-                  {todo.title}
-                </span>
-
-                <button
-                  type="button"
-                  className="todo__remove"
-                  data-cy="TodoDelete"
-                >
-                  ×
-                </button>
-
-                <div data-cy="TodoLoader" className="modal overlay">
-                  <div className="modal-background has-background-white-ter" />
-                  <div className="loader" />
-                </div>
-              </div>
-            ))}
-          </section>
-        )}
-
-        {todos.length > 0 && (
-          <footer className="todoapp__footer" data-cy="Footer">
-            <span className="todo-count" data-cy="TodosCounter">
-              {activeTodos.length} items left
-            </span>
-
-            <nav className="filter" data-cy="Filter">
-              <a
-                href="#/"
-                className={`filter__link ${filter === 'all' ? 'selected' : ''}`}
-                data-cy="FilterLinkAll"
-              >
-                All
-              </a>
-
-              <a
-                href="#/active"
-                className={`filter__link ${
-                  filter === 'active' ? 'selected' : ''
-                }`}
-                data-cy="FilterLinkActive"
-              >
-                Active
-              </a>
-
-              <a
-                href="#/completed"
-                className={`filter__link ${
-                  filter === 'completed' ? 'selected' : ''
-                }`}
-                data-cy="FilterLinkCompleted"
-              >
-                Completed
-              </a>
-            </nav>
-
-            <button
-              type="button"
-              className="todoapp__clear-completed"
-              data-cy="ClearCompletedButton"
-              disabled={completedTodos.length === 0}
-            >
-              Clear completed
-            </button>
-          </footer>
-        )}
+        {todos.length > 0 && <TodoFooter todos={todos} filter={filter} />}
       </div>
 
-      <div
-        data-cy="ErrorNotification"
-        className={`notification is-danger is-light has-text-weight-normal ${
-          error ? '' : 'hidden'
-        }`}
-      >
-        <button
-          data-cy="HideErrorButton"
-          type="button"
-          className="delete"
-          onClick={handleHideError}
-        />
-
-        {error}
-      </div>
+      <ErrorNotification error={error} onClose={handleHideError} />
     </div>
   );
 };
